@@ -1,5 +1,4 @@
 import random
-GAME_SACK = list(range(1, 91))
 
 
 class ComputerPlayer:
@@ -125,14 +124,17 @@ if __name__ == '__main__':
         players_list.append(HumanPlayer(True, player_name))
     #Для маловероятного случая генерации одинаковых карточек пусть будет список победителей
     winners_list = []
-    losers_count = 0
-    no_winners = False
     correct_discard_answers = ['да', 'нет']
     #Победителей может и не быть, если нет компьютерных игроков, а все люди ошиблись
-    while not winners_list and not no_winners:
-        number_from_sack = random.choice(GAME_SACK)
+    game_sack = list(range(1, 91))
+    while not winners_list and players_list:
+        # players_list = list(filter())
+        number_from_sack = random.choice(game_sack)
+        game_sack.remove(number_from_sack)
         print(f'Выпал номер {number_from_sack}')
         for player in players_list:
+            if player.loser:
+                continue
             print(player.name)
             player.print_card()
             if player.human:
@@ -145,11 +147,10 @@ if __name__ == '__main__':
             player.print_card()
             if player.winner:
                 winners_list.append(player.name)
-            elif player.loser:
-                losers_count += 1
-                no_winners = losers_count + number_of_computer_players == len(players_list)
-
-    if no_winners:
+        players_list = list(filter(lambda x: not x.loser, players_list))
+        if len(players_list) == 1:
+            winners_list.append(players_list[0].name)
+    if not players_list:
         print('Все игроки ошиблись победителей нет.')
     else:
         print('Победители:')
