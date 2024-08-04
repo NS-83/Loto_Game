@@ -1,68 +1,68 @@
-from lottery import numbers_input_is_correct, ComputerPlayer, HumanPlayer
+import pytest
+
+import lottery
 
 
-def test_numbers_input_is_correct():
-    assert numbers_input_is_correct('2', '0')
-    assert not numbers_input_is_correct('0', '1')
-    assert not numbers_input_is_correct('test', '2')
-    assert not numbers_input_is_correct('1.5', '2')
+@pytest.fixture
+def human_game_generator(request):
+    new_game = lottery.LotteryGame()
+    human_player_card = [x for x in range(1, 16)]
+    human_player = lottery.HumanPlayer(True, 'Human', human_player_card)
+    new_game.add_player(human_player)
+    request.cls.game = new_game
 
 
-class TestComputerPlayer:
-
-    def test_init(self):
-        player = ComputerPlayer(False, 'Test player')
-        assert len(player.player_card) == 27
-        assert not player.human
-        assert not player.loser
-        assert not player.winner
-
-    def test_discard_number(self):
-        player = ComputerPlayer(False, 'Test player')
-        number = None
-        player.discard_number(number)
-        assert not player.player_card.count('-')
-        number_index = None
-        for card_number in player.player_card:
-            if card_number != ' ':
-                number = card_number
-                number_index = player.player_card.index(card_number)
-                break
-        player.discard_number(number)
-        assert player.player_card[number_index] == '-'
-
-    def test_winner(self):
-        player = ComputerPlayer(False, 'Test player')
-        for card_number in player.player_card:
-            if card_number != ' ':
-                player.discard_number(card_number)
-        assert player.winner
-
-
+@pytest.mark.usefixtures('human_game_generator')
 class TestHumanPlayer:
-    def test_discard_is_right(self):
-        player = HumanPlayer(True, 'Test player')
-        player.discard_number(91, False)
-        assert not player.loser
-        number = None
-        number_index = None
-        for card_number in player.player_card:
-            if card_number != ' ':
-                number = card_number
-                number_index = player.player_card.index(card_number)
-                break
-        player.discard_number(number, True)
-        assert player.player_card[number_index] == '-'
-        assert not player.loser
+    def test_str(self):
+        name = 'Human'
+        card_separator = '--------------------------'
+        first_row = '1 2 3 4 5        '
+        second_row = '6 7 8 9 10        '
+        third_row = '  11 12 13 14 15      '
+        computer_player_string = f'{name}\n{card_separator}\n{first_row}\n{second_row}\n{third_row}\n{card_separator}'
+        assert str(self.game[0]) == computer_player_string
 
-    def test_discard_is_wrong(self):
-        player = HumanPlayer(True, 'Test player')
-        player.discard_number(91, True)
-        assert player.loser
-        number = None
-        for card_number in player.player_card:
-            if card_number != ' ':
-                number = card_number
-                break
-        player.discard_number(number, False)
-        assert player.loser
+    def test_right_discard(self):
+        self.game[0].discard_number(1, True)
+        assert self.game[0]._player_card == ['-', 2, 3, 4, 5, ' ', ' ', ' ', ' ', 6, 7, 8, 9, 10, ' ', ' ', ' ', ' ',
+                                             ' ', 11, 12, 13, 14, 15, ' ', ' ', ' ']
+        assert not self.game[0].loser
+        assert not self.game[0].winner
+
+    def test_discard_wrong_number(self):
+        self.game[0].discard_number(16, True)
+        assert self.game[0].loser
+        assert not self.game[0].winner
+
+    def test_not_discard_right_number(self):
+        self.game[0].discard_number(1, False)
+        assert self.game[0].loser
+        assert not self.game[0].winner
+
+    def test_remove_losers(self):
+        self.game[0].discard_number(1, False)
+        self.game.remove_losers()
+        assert not len(self.game)
+
+    def test_winners_human_wrong_number(self):
+        computer_player = lottery.ComputerPlayer(False, 'Computer', [1])
+        self.game.add_player(computer_player)
+        self.game[0].discard_number(1, False)
+        self.game.remove_losers()
+        assert self.game.winners() == ['Computer']
+
+    def test_winners_all_numbers_discarded(self):
+        computer_player = lottery.ComputerPlayer(False, 'Computer', [x for x in range(2, 17)])
+        self.game.add_player(computer_player)
+        for i in range(2, 17):
+            self.game[1].discard_number(i)
+        assert self.game.winners() == ['Computer']
+
+    def test_several_winners(self):
+        computer_player = lottery.ComputerPlayer(False, 'Computer', [x for x in range(1, 16)])
+        self.game.add_player(computer_player)
+        for i in range(1, 16):
+            self.game[0].discard_number(i, True)
+            self.game[1].discard_number(i)
+        assert self.game.winners() == ['Human', 'Computer']
